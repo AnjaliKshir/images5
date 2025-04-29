@@ -1,0 +1,45 @@
+
+import random
+import time
+import concurrent.futures
+
+def quicksort(arr):
+    if len(arr) <= 1:
+        return arr
+    pivot = arr[0]
+    less = [x for x in arr[1:] if x <= pivot]
+    greater = [x for x in arr[1:] if x > pivot]
+    return quicksort(less) + [pivot] + quicksort(greater)
+
+def parallel_quicksort(arr, depth=0, max_depth=2):
+    if len(arr) <= 100_000 or depth >= max_depth:
+        return quicksort(arr)
+
+    pivot = arr[0]
+    less = [x for x in arr[1:] if x <= pivot]
+    greater = [x for x in arr[1:] if x > pivot]
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        less_future = executor.submit(parallel_quicksort, less, depth + 1, max_depth)
+        greater_future = executor.submit(parallel_quicksort, greater, depth + 1, max_depth)
+
+        return less_future.result() + [pivot] + greater_future.result()
+
+---new cell---
+
+size = 100000
+arr = [random.randint(0, 1000) for _ in range(size)]
+print("#Prajwal Gadhave BACO21145")
+# Sequential
+start = time.time()
+sorted_seq = quicksort(arr)
+print("Sequential time:", time.time() - start)
+
+# Parallel (Threaded)
+start = time.time()
+sorted_par = parallel_quicksort(arr)
+print("Parallel time:", time.time() - start)
+
+#I used task parallelism through Python’s concurrent.futures.ThreadPoolExecutor to run recursive quicksort calls in parallel.
+
+     

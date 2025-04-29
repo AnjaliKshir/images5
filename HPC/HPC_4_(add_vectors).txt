@@ -1,0 +1,113 @@
+
+
+# (Important) first go to runtime -> change runtime type -> Select T4 - GPU (Any Available GPU) -> Save
+!nvcc --version
+
+# Debug log: Check whether the Runtime is GPU based or not!
+import torch
+torch.cuda.is_available() # Should be True
+
+     
+cuda_code = r"""
+#include 
+#include 
+#include 
+#include 
+
+#You define a vector size of 500 elements.
+#define N 500
+
+__global__ void add(int *a, int *b, int *c) {
+    int tid = threadIdx.x;
+    if (tid < N) {
+        c[tid] = a[tid] + b[tid];
+    }
+}
+
+int main(void) {
+    int a[N], b[N], c[N];
+    int *dev_a, *dev_b, *dev_c;
+
+    cudaError_t err = cudaSuccess;
+
+    err = cudaMalloc((void**)&dev_a, N * sizeof(int));
+    if (err != cudaSuccess) {
+        printf("Failed to allocate on device\n");
+        printf("Error is: %s\n", cudaGetErrorString(err));
+        exit(EXIT_FAILURE);
+    }
+
+    cudaMalloc((void**)&dev_b, N * sizeof(int));
+    cudaMalloc((void**)&dev_c, N * sizeof(int));
+
+    for (int i = 0; i < N; i++) {
+        a[i] = i;
+        b[i] = i * i;
+        c[i] = 0;
+    }
+
+    cudaEvent_t start, end;
+    cudaEventCreate(&start);
+    cudaEventCreate(&end);
+    cudaEventRecord(start);
+
+    cudaMemcpy(dev_a, a, N * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(dev_b, b, N * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(dev_c, c, N * sizeof(int), cudaMemcpyHostToDevice);
+
+    add<<<1, N>>>(dev_a, dev_b, dev_c);
+
+    err = cudaMemcpy(c, dev_c, N * sizeof(int), cudaMemcpyDeviceToHost);
+    if (err != cudaSuccess) {
+        printf("Failed to copy from device\n");
+        exit(EXIT_FAILURE);
+    }
+
+    cudaEventRecord(end);
+    cudaEventSynchronize(end);
+    float time = 0;
+    cudaEventElapsedTime(&time, start, end);
+ printf("Name: Anurag Sawal BACO21158\n");
+     printf(" ");
+
+    printf("Execution time = %f ms\n", time);
+
+    // Print a few sample results
+    for (int i = 0; i < 10; i++) {
+        printf("%d + %d = %d\n", a[i], b[i], c[i]);
+    }
+
+
+    cudaFree(dev_a);
+    cudaFree(dev_b);
+    cudaFree(dev_c);
+
+    return 0;
+}
+"""
+
+with open('add_vectors.cu', 'w') as f:
+    f.write(cuda_code)
+
+     
+
+!nvcc add_vectors.cu -o add_vectors -arch=sm_75 # -arch=sm_75 signifies For CUDA 12.5 with a T4 GPU (compute capability 7.5)
+     
+
+!./add_vectors
+     
+//OUTPUT
+ Execution time = 0.943072 ms
+0 + 0 = 0
+1 + 1 = 2
+2 + 4 = 6
+3 + 9 = 12
+4 + 16 = 20
+5 + 25 = 30
+6 + 36 = 42
+7 + 49 = 56
+8 + 64 = 72
+9 + 81 = 90
+
+
+     
